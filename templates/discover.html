@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Help Me Choose | TripMate AI Scout</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page-bg">
+    <div class="gradient-circle circle-1"></div>
+    <div class="gradient-circle circle-2"></div>
+    <div class="gradient-circle circle-3"></div>
+  </div>
+
+  <main class="app-container discovery-page">
+    <a class="back-link" href="/">← Back to Trip Planner</a>
+
+    <section class="hero-section">
+      <div class="badge">✦ Multi-Agent Destination Scout</div>
+      <h1>Help me choose a destination.</h1>
+      <p>Tell us where you are starting and which month you want to travel. Our multi-agent graph researches geographically relevant getaways, verifies seasonal events, and ranks the best options.</p>
+    </section>
+
+    <!-- FLOW 2: MINIMAL & INTUITIVE INPUT -->
+    <section class="planner-card">
+      <div class="step-label">Flow 2 · Discovery Scout</div>
+      <h2>Where and when are you starting?</h2>
+      
+      <form id="discoveryForm">
+        <div class="form-grid discover-main-grid">
+          <label>
+            📍 Starting / Nearby Location
+            <input id="discoverOrigin" required placeholder="e.g. Karlapat, Mumbai, or Delhi" value="Karlapat">
+          </label>
+          <label>
+            📅 Travel Month
+            <select id="discoverMonth" required>
+              <option value="January">January</option>
+              <option value="February">February</option>
+              <option value="March">March</option>
+              <option value="April">April</option>
+              <option value="May">May</option>
+              <option value="June">June</option>
+              <option value="July">July</option>
+              <option value="August" selected>August</option>
+              <option value="September">September</option>
+              <option value="October">October</option>
+              <option value="November">November</option>
+              <option value="December">December</option>
+            </select>
+          </label>
+          <label>
+            🗓️ Year
+            <select id="discoverYear">
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </label>
+        </div>
+
+        <details class="preferences-accordion">
+          <summary><span>✨ Optional Preferences (Interests, Mood, Pace)</span></summary>
+          <div class="choices" style="margin-top: 14px;">
+            <span>What kind of experiences do you prefer?</span>
+            <div id="discoverInterests" class="tag-buttons">
+              <button type="button">Nature</button>
+              <button type="button">Culture</button>
+              <button type="button">Relaxation</button>
+              <button type="button">Food</button>
+              <button type="button">Beaches</button>
+              <button type="button">Heritage</button>
+              <button type="button">Adventure</button>
+              <button type="button">Hill Station</button>
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top: 12px;">
+            <label>
+              Travel pace
+              <select id="discoverPace">
+                <option value="relaxed">Relaxed</option>
+                <option value="balanced" selected>Balanced</option>
+                <option value="fast">Fast-paced</option>
+              </select>
+            </label>
+            <label>
+              Approx. Budget
+              <select id="discoverBudget">
+                <option value="flexible" selected>Flexible</option>
+                <option value="30000">Under ₹30,000</option>
+                <option value="60000">Under ₹60,000</option>
+                <option value="120000">Under ₹1,20,000</option>
+              </select>
+            </label>
+          </div>
+        </details>
+
+        <button class="primary" type="submit" id="discoverSubmitBtn">
+          Scout Destinations <span>→</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- LIVE AGENT PROGRESS -->
+    <section id="discoverProgress" class="result-section hidden">
+      <h2>LangGraph Agent Pipeline</h2>
+      <div id="discoverStatus" class="progress-list"></div>
+    </section>
+
+    <!-- CLEAN DESTINATION CARDS -->
+    <section id="discoverResults" class="result-section hidden">
+      <div class="result-header">
+        <div>
+          <h2>Recommended Destinations</h2>
+          <p id="discoverNote" class="section-note"></p>
+        </div>
+      </div>
+      
+      <div id="candidateGrid" class="cards clean-destinations-grid"></div>
+    </section>
+  </main>
+
+  <!-- STICKY BOTTOM SELECTION DRAWER -->
+  <aside id="selectionDrawer" class="selection-drawer hidden">
+    <div class="selection-drawer-content">
+      <div class="selection-info">
+        <span class="selection-count-badge" id="selectedCount">0</span>
+        <div>
+          <strong>Selected Destinations</strong>
+          <div id="selectedChips" class="selected-chips"></div>
+        </div>
+      </div>
+      <button id="continuePlanningBtn" class="primary continue-btn" type="button">
+        Continue to Trip Planning <span>→</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- DESTINATION DETAILS MODAL -->
+  <div id="detailsModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Destination Details</h3>
+        <button id="closeModalBtn" class="modal-close-btn" aria-label="Close modal">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <footer>
+    Gemini Reasoning · LangGraph Orchestration · Verified Evidence Pipeline
+  </footer>
+
+  <script src="/static/discover.js"></script>
+</body>
+</html>

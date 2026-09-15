@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TripMate AI · Multi-Agent Travel Planner</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page-bg">
+    <div class="gradient-circle circle-1"></div>
+    <div class="gradient-circle circle-2"></div>
+    <div class="gradient-circle circle-3"></div>
+  </div>
+
+  <main class="app-container">
+    <section class="hero-section">
+      <div class="badge">✈️ TripMate AI · Gemini + LangGraph</div>
+      <h1>Plan with research, not guesses.</h1>
+      <p>Multi-agent LangGraph system with evidence-backed itineraries, interactive flight & hotel selections, and instant replanning.</p>
+    </section>
+
+    <!-- DISCOVERY HANDOFF BANNER (Shown when redirected from 'Help me choose') -->
+    <div id="discoveryHandoffBanner" class="discovery-handoff-banner hidden">
+      <div class="banner-content">
+        <span class="banner-icon">✨</span>
+        <div class="banner-text">
+          <strong id="handoffTitle">Destination Loaded from Discovery</strong>
+          <p id="handoffDesc">Agents pre-filled your itinerary inputs based on your scouted recommendations.</p>
+        </div>
+      </div>
+      <button type="button" id="clearHandoffBtn" class="clear-handoff-btn" title="Reset">✕</button>
+    </div>
+
+    <section class="planner-card" id="planner">
+      <div class="step-label">Trip Planning Hub</div>
+      <h2>How would you like to plan?</h2>
+      
+      <div class="mode-grid">
+        <button class="mode-card active" data-mode="known" type="button">
+          <span>📍</span>
+          <strong>I know my destination</strong>
+          <small>Build a researched itinerary around specific destinations.</small>
+        </button>
+        <button class="mode-card" data-mode="discover" type="button">
+          <span>✨</span>
+          <strong>Help me choose</strong>
+          <small>Scout evidence-backed getaways from your starting point.</small>
+        </button>
+      </div>
+
+      <form id="tripForm">
+        <div class="form-grid">
+          <label class="destination-field">
+            📍 Destination(s)
+            <input id="destination" required placeholder="e.g. Alleppey, Thekkady or Kyoto, Japan">
+          </label>
+          <label>
+            🚩 Origin / Starting City
+            <input id="origin" required placeholder="e.g. Karlapat or Mumbai">
+          </label>
+          <label>
+            📅 Start date
+            <input id="startDate" required type="date" class="date-input-box">
+          </label>
+          <label>
+            📅 End date
+            <input id="endDate" required type="date" class="date-input-box">
+          </label>
+          <label>
+            👥 Travellers
+            <select id="travelers">
+              <option value="1">1 Person (Solo)</option>
+              <option value="2">2 Persons (Couple)</option>
+              <option value="3">3 Persons</option>
+              <option value="4">4 Persons (Family/Group)</option>
+              <option value="5">5+ Persons</option>
+            </select>
+          </label>
+          <label>
+            🎒 Trip style
+            <select id="travelerType">
+              <option>Solo</option>
+              <option>Couple</option>
+              <option>Family</option>
+              <option>Friends</option>
+            </select>
+          </label>
+          <label>
+            💰 Budget (optional)
+            <input id="budget" type="number" min="1" placeholder="e.g. 50000">
+          </label>
+          <label>
+            💱 Currency
+            <select id="currency">
+              <option value="INR">INR (₹)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+            </select>
+          </label>
+          <label>
+            ⏱️ Travel pace
+            <select id="pace">
+              <option value="relaxed">Relaxed</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="fast">Fast-paced</option>
+            </select>
+          </label>
+          <label>
+            🏨 Stay preference
+            <select id="accommodation">
+              <option>Budget hotel</option>
+              <option selected>Mid-range hotel</option>
+              <option>Boutique hotel</option>
+              <option>Luxury resort</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="choices">
+          <span>Interests & Experiences</span>
+          <div id="interests">
+            <button type="button">Nature</button>
+            <button type="button">Culture</button>
+            <button type="button">Relaxation</button>
+            <button type="button">Food</button>
+            <button type="button">Beaches</button>
+            <button type="button">Heritage</button>
+            <button type="button">Adventure</button>
+            <button type="button">Hill Station</button>
+          </div>
+        </div>
+
+        <label class="full">
+          📝 Special requirements
+          <input id="requirements" placeholder="Optional: less walking, vegetarian food, accessibility needs…">
+        </label>
+
+        <button class="primary" type="submit" id="planSubmitBtn">
+          Generate Multi-Agent Trip Plan <span>→</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- LIVE RESEARCH PROGRESS -->
+    <section id="progressPanel" class="result-section hidden">
+      <h2>LangGraph Agent Execution Progress</h2>
+      <div id="progressList" class="progress-list"></div>
+    </section>
+
+    <!-- PLAN DASHBOARD -->
+    <section id="resultSection" class="result-section hidden">
+      <div class="result-header">
+        <div>
+          <h2>Your Verified Multi-Agent Travel Plan</h2>
+          <p id="tripId" class="section-note"></p>
+        </div>
+        <div class="header-action-group">
+          <button class="secondary-btn" id="adjustPlanBtn" type="button">✨ Adjust with AI</button>
+          <button class="download-btn" onclick="downloadPlan()">Download PDF</button>
+        </div>
+      </div>
+      <div id="resultBox" class="dashboard"></div>
+    </section>
+  </main>
+
+  <!-- REPLANNING AGENT FLOATING ASSISTANT -->
+  <aside id="changeAssistant" class="change-assistant hidden">
+    <div class="assistant-heading">
+      <div>
+        <div class="assistant-title">✨ Replanning Agent</div>
+        <div class="assistant-subtitle">Instruct the agent what to modify. Affected activities update instantly while preserving confirmed flights and hotels.</div>
+      </div>
+      <button class="assistant-close" aria-label="Close">×</button>
+    </div>
+    
+    <div class="quick-changes">
+      <button type="button" data-replan="Cheaper and budget-friendly">💰 Cheaper</button>
+      <button type="button" data-replan="Less walking and more cabs">🚶 Less walking</button>
+      <button type="button" data-replan="Add authentic local food experiences">🍲 More food</button>
+      <button type="button" data-replan="More cultural and heritage spots">🏛️ More culture</button>
+      <button type="button" data-replan="More nature viewpoints and scenic spots">🌿 More nature</button>
+      <button type="button" data-replan="Make itinerary slower and more relaxed">☕ More relaxed</button>
+    </div>
+    
+    <div class="change-input">
+      <input id="changeText" placeholder="e.g. Replace walking tour with a boat ride, or make Day 2 more relaxed">
+      <button id="applyChange" aria-label="Update itinerary" type="button">➤</button>
+    </div>
+  </aside>
+
+  <button id="assistantLauncher" class="assistant-launcher hidden" type="button">
+    ✨ Adjust Itinerary
+  </button>
+
+  <footer>
+    Gemini Reasoning · LangGraph Multi-Agent Orchestration · Anti-Hallucination Verified Evidence
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="/static/script.js"></script>
+</body>
+</html>
