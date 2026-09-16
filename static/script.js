@@ -4,6 +4,7 @@ let latestTrip = null;
 let selectedFlight = null;
 let selectedHotel = null;
 let selectedCab = null;
+let tripController = null;
 
 const $ = id => document.getElementById(id);
 const esc = x => String(x ?? "Information unavailable").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
@@ -631,7 +632,10 @@ function renderProgress(items, activeLabel = "") {
 $("tripForm").onsubmit = async event => {
   event.preventDefault();
   const submitButton = $("planSubmitBtn");
+  const cancelButton = $("planCancelBtn");
+  tripController = new AbortController();
   submitButton.disabled = true;
+  cancelButton.classList.remove("hidden");
   submitButton.innerHTML = '<span class="loader"></span> Researching with Multi-Agent Graph...';
 
   const destText = $("destination").value.trim();
@@ -666,7 +670,8 @@ $("tripForm").onsubmit = async event => {
     const response = await fetch("/api/trips", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: tripController.signal
     });
 
     const data = await response.json();
@@ -679,12 +684,20 @@ $("tripForm").onsubmit = async event => {
     $("resultSection").scrollIntoView({ behavior: "smooth", block: "start" });
 
   } catch (error) {
-    $("progressList").innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    $("progressList").innerHTML = error.name === "AbortError"
+      ? '<div class="error">Research paused. You can start it again when ready.</div>'
+      : `<div class="error">${esc(error.message)}</div>`;
   } finally {
     submitButton.disabled = false;
     submitButton.innerHTML = 'Generate Multi-Agent Trip Plan <span>→</span>';
+    cancelButton.classList.add("hidden");
+    tripController = null;
   }
 };
+
+$("planCancelBtn")?.addEventListener("click", () => {
+  tripController?.abort();
+});
 
 // -------------------------------------------------------------
 // REPLANNING AGENT INTERACTION (WITH DYNAMIC HOTEL SEARCH SUPPORT)
@@ -838,10 +851,21 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const urlParams = new URLSearchParams(window.location.search);
   const fromDiscovery = urlParams.get("from_discovery") === "true";
+  let storedStartDate = "";
+  let storedEndDate = "";
+  if (fromDiscovery) {
+    try {
+      storedStartDate = sessionStorage.getItem("tripmate_discovery_start_date") || "";
+      storedEndDate = sessionStorage.getItem("tripmate_discovery_end_date") || "";
+    } catch (e) {}
+  }
   const destParam = urlParams.get("destination");
   const originParam = urlParams.get("origin");
   const monthParam = urlParams.get("month");
   const yearParam = urlParams.get("year") || "2026";
+  const startDateParam = urlParams.get("start_date") || urlParams.get("startDate") || storedStartDate;
+  const endDateParam = urlParams.get("end_date") || urlParams.get("endDate") || storedEndDate;
+  const daysParam = Number(urlParams.get("days")) || 5;
   const paceParam = urlParams.get("pace");
   const budgetParam = urlParams.get("budget");
   const autostart = urlParams.get("autostart") === "true";
@@ -852,13 +876,17 @@ window.addEventListener("DOMContentLoaded", () => {
     if (paceParam) $("pace").value = paceParam;
     if (budgetParam) $("budget").value = budgetParam;
 
-    if (monthParam) {
+    if (startDateParam && endDateParam) {
+      $("startDate").value = startDateParam;
+      $("endDate").value = endDateParam;
+    } else if (monthParam) {
       const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
       const mIdx = monthNames.indexOf(monthParam);
       if (mIdx !== -1) {
         const mm = String(mIdx + 1).padStart(2, "0");
         $("startDate").value = `${yearParam}-${mm}-10`;
-        $("endDate").value = `${yearParam}-${mm}-14`;
+        const endDate = new Date(Number(yearParam), mIdx, 10 + daysParam - 1);
+        $("endDate").value = endDate.toISOString().split("T")[0];
       }
     } else {
       const tomorrow = new Date();
