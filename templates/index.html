@@ -136,9 +136,12 @@
           <input id="requirements" placeholder="Optional: less walking, vegetarian food, accessibility needs…">
         </label>
 
-        <button class="primary" type="submit" id="planSubmitBtn">
-          Generate Multi-Agent Trip Plan <span>→</span>
-        </button>
+        <div class="agent-action-row">
+          <button class="primary" type="submit" id="planSubmitBtn">
+            Generate Multi-Agent Trip Plan <span>→</span>
+          </button>
+          <button class="cancel-btn hidden" type="button" id="planCancelBtn">Pause research</button>
+        </div>
       </form>
     </section>
 
@@ -198,6 +201,6 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="/static/script.js"></script>
+  <script src="/static/script.js?v=20260917"></script>
 </body>
 </html>
