@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from tools.tavily_tool import tavily_search
 from tools.flight_tool import search_flights
+from tools.train_tool import search_trains
 
 load_dotenv()
 
@@ -194,6 +195,7 @@ class TripState(TypedDict, total=False):
     events: list[dict]
     places: list[dict]
     flights: list[dict]
+    trains: list[dict]
     hotels: list[dict]
     itinerary: list[dict]
     validation: dict
@@ -648,6 +650,29 @@ def flights(state: TripState):
     return {"flights": result, **done("Searching flights")}
 
 
+def trains(state: TripState):
+    req = TripRequest.model_validate(state["request"])
+    destination = state.get("selected_destination")
+    if not destination:
+        return {"trains": [unavailable("RapidAPI", "Select a destination first")], **done("Searching trains")}
+    
+    logger.info("agent=trains provider=RapidAPI status=started origin=%s destination=%s", req.origin, destination)
+    
+    result = search_trains(req.origin, destination, str(req.start_date), limit=5)
+    
+    if isinstance(result, str):
+        logger.warning("agent=trains provider=RapidAPI status=unavailable reason=%s", result.splitlines()[0])
+        return {"trains": [{"status": "UNAVAILABLE", "source": "RapidAPI", "fetched_at": now(), "message": result}], **done("Searching trains")}
+    
+    # Force LIVE status for the UI
+    for train in result:
+        train["status"] = "LIVE"
+        train["source"] = "IRCTC (RapidAPI)"
+        
+    return {"trains": result, **done("Searching live trains")}
+
+
+
 def hotels(state: TripState):
     """HotelAgent: Extracts REAL hotel/resort names, accurate pricing, and booking links."""
     logger.info("agent=hotels status=started")
@@ -862,12 +887,12 @@ def finish(state: TripState):
 
 
 graph = StateGraph(TripState)
-for name, fn in [("normalize", normalize), ("discovery", discovery), ("weather", weather), ("events", events), ("places", places), ("flights", flights), ("hotels", hotels), ("itinerary", itinerary), ("validate", validate), ("budget", budget), ("recommendations", recommendations), ("travel_insights", travel_insights), ("finish", finish)]:
+for name, fn in [("normalize", normalize), ("discovery", discovery), ("weather", weather), ("events", events), ("places", places), ("flights", flights), ("trains", trains), ("hotels", hotels), ("itinerary", itinerary), ("validate", validate), ("budget", budget), ("recommendations", recommendations), ("travel_insights", travel_insights), ("finish", finish)]:
     graph.add_node(name, fn)
 graph.add_edge(START, "normalize"); graph.add_edge("normalize", "discovery")
 graph.add_edge("discovery", "weather"); graph.add_edge("discovery", "events"); graph.add_edge("discovery", "places")
 graph.add_edge("weather", "flights"); graph.add_edge("events", "flights"); graph.add_edge("places", "flights")
-graph.add_edge("flights", "hotels"); graph.add_edge("hotels", "itinerary"); graph.add_edge("itinerary", "validate")
+graph.add_edge("flights", "trains"); graph.add_edge("trains", "hotels"); graph.add_edge("hotels", "itinerary"); graph.add_edge("itinerary", "validate")
 graph.add_edge("validate", "budget"); graph.add_edge("budget", "recommendations"); graph.add_edge("recommendations", "travel_insights"); graph.add_edge("travel_insights", "finish"); graph.add_edge("finish", END)
 travel_graph = graph.compile()
 

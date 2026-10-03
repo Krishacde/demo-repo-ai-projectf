@@ -183,9 +183,16 @@ function buildTripViewModel(payload, response) {
       ...f,
       price_num: parseCurrencyNum(f.price || f.estimated_cost) || (6500 + i * 1200)
     })) : fallbackFlights,
-    trains: (response.trains && response.trains.length > 0 && !response.trains[0].message) 
-      ? response.trains.map((t, i) => ({ ...t, price_num: parseCurrencyNum(t.price) || (1200 + i * 500) })) 
-      : fallbackTrains,
+    trains: (response.trains && response.trains.length > 0)
+      ? response.trains.map(t => {
+          const numPrice = typeof t.price === 'number' ? t.price : parseCurrencyNum(t.price);
+          return {
+            ...t,
+            price_num: numPrice,
+            price: typeof t.price === 'number' ? `₹${t.price.toLocaleString("en-IN")}` : (t.price || null)
+          };
+        })
+      : [],
     hotels: (response.hotels && response.hotels.length > 0) ? response.hotels.map((h, i) => ({
       ...h,
       total_num: parseCurrencyNum(h.total_price || h.price_num || h.price) || (12000 + i * 3500)
@@ -251,13 +258,17 @@ function toggleTrainSelection(index) {
     latestTrip.itinerary_items = latestTrip.itinerary_items.filter(act => !act.is_train_entry);
     
     const depDate = latestTrip.request.start_date;
+    const classesText = Array.isArray(train.available_classes) && train.available_classes.length > 0 
+      ? train.available_classes.join(" · ") 
+      : (train.available_classes || "AC / Sleeper");
+
     latestTrip.itinerary_items.unshift({
       date: depDate,
       start_time: train.departure_time || "16:55",
       end_time: train.arrival_time || "08:35",
       title: `🚆 Confirmed Train: ${train.train_name} (${train.train_number})`,
       location: `${train.departure_station || latestTrip.request.origin} → ${train.arrival_station || latestTrip.selected_destination}`,
-      description: `Confirmed rail booking. Classes available: ${train.available_classes ? train.available_classes.join(" · ") : "AC / Sleeper"}. Duration: ${train.duration || "On schedule"}.`,
+      description: `Confirmed rail booking. Classes available: ${classesText}. Duration: ${train.duration || "On schedule"}.`,
       reason: "Confirmed Rail Booking",
       status: "VERIFIED",
       cost: train.price_num || parseCurrencyNum(train.price),
@@ -385,7 +396,7 @@ function renderItinerary(items) {
                 <div class="activity-main-col">
                   <div class="activity-title-row">
                     <h4>${esc(act.title)}</h4>
-                    <span class="status-badge ${act.status === 'VERIFIED' ? 'VERIFIED' : 'ESTIMATED'}">${esc(act.status)}</span>
+                    <span class="status-badge ${esc(act.status || 'ESTIMATED').replace(/\s+/g, '-')}">${esc(act.status)}</span>
                   </div>
                   <div class="activity-location">📍 ${esc(act.location)}</div>
                   <p class="activity-desc">${esc(act.description)}</p>
@@ -404,9 +415,11 @@ function renderItinerary(items) {
 }
 
 function renderFlightCards(flights) {
+  if (!flights || flights.length === 0) return `<div class="empty-notice">No flights available.</div>`;
+
   return `
     <div class="cards">
-      ${(flights || []).map((f, i) => {
+      ${flights.map((f, i) => {
         const isChosen = selectedFlight && selectedFlight.flight_number === f.flight_number;
         return `
           <article class="data-card provider-card ${isChosen ? 'is-selected-card' : ''}">
@@ -415,7 +428,7 @@ function renderFlightCards(flights) {
                 <h4>✈️ ${esc(f.airline)}</h4>
                 <span class="sub-code">${esc(f.flight_number || "Scheduled Flight")}</span>
               </div>
-              <span class="status-badge ${f.status || 'ESTIMATED'}">${esc(f.status || 'ESTIMATED')}</span>
+              <span class="status-badge ${esc(f.status || 'ESTIMATED').replace(/\s+/g, '-')}">${esc(f.status || 'ESTIMATED')}</span>
             </div>
             <div class="flight-timings-grid">
               <div class="timing-block">
@@ -449,10 +462,27 @@ function renderFlightCards(flights) {
 }
 
 function renderTrainCards(trains) {
+  if (!trains || trains.length === 0) return `<div class="empty-notice">No train options found for this route.</div>`;
+
+  // Handle a single error/unavailable entry returned by search_trains() on failure
+  if (trains.length === 1 && (trains[0].status === 'UNAVAILABLE' || trains[0].message)) {
+    const msg = trains[0].message || trains[0].status || 'Train search unavailable for this route.';
+    return `
+      <div class="empty-notice train-error-notice">
+        <span style="font-size:1.2em">⚠️</span>
+        <span>${esc(msg)}</span>
+      </div>
+    `;
+  }
+
   return `
     <div class="cards">
-      ${(trains || []).map((t, i) => {
+      ${trains.map((t, i) => {
         const isChosen = selectedTrain && selectedTrain.train_number === t.train_number;
+        const classesText = Array.isArray(t.available_classes) && t.available_classes.length > 0 
+          ? t.available_classes.join(" · ") 
+          : (t.available_classes || "");
+
         return `
           <article class="data-card provider-card ${isChosen ? 'is-selected-card' : ''}">
             <div class="card-header-row">
@@ -460,7 +490,7 @@ function renderTrainCards(trains) {
                 <h4>🚆 ${esc(t.train_name)}</h4>
                 <span class="sub-code">${esc(t.train_number || "Train Number")}</span>
               </div>
-              <span class="status-badge ${t.status || 'ESTIMATED'}">${esc(t.status || 'ESTIMATED')}</span>
+              <span class="status-badge ${esc(t.status || 'ESTIMATED').replace(/\s+/g, '-')}">${esc(t.status || 'ESTIMATED')}</span>
             </div>
             <div class="flight-timings-grid">
               <div class="timing-block">
@@ -476,7 +506,7 @@ function renderTrainCards(trains) {
                 <small>${esc(t.arrival_station || latestTrip?.selected_destination || "Arrival")}</small>
               </div>
             </div>
-            ${t.available_classes ? `<div class="card-section"><span class="travel-text">🧳 ${esc(t.available_classes.join(" · "))}</span></div>` : ""}
+            ${classesText ? `<div class="card-section"><span class="travel-text">🧳 ${esc(classesText)}</span></div>` : ""}
             <div class="card-action-row provider-action-row">
               <div class="price-block">
                 <span class="price-val">${esc(t.price || `₹${t.price_num}`)}</span>
@@ -499,7 +529,7 @@ function renderHotelCards(hotels) {
   }
   return `
     <div class="cards" id="hotelsGridContainer">
-      ${(hotels || []).map((h, i) => {
+      ${hotels.map((h, i) => {
         const isChosen = selectedHotel && selectedHotel.name === h.name;
         const bookingLink = h.booking_url || `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(h.name + ' ' + (latestTrip?.selected_destination || ''))}`;
         return `
@@ -537,9 +567,11 @@ function renderHotelCards(hotels) {
 }
 
 function renderCabCards(cabs) {
+  if (!cabs || cabs.length === 0) return `<div class="empty-notice">No cabs available.</div>`;
+
   return `
     <div class="cards">
-      ${(cabs || []).map((c, i) => {
+      ${cabs.map((c, i) => {
         const isChosen = selectedCab && selectedCab.name === c.name;
         return `
           <article class="data-card provider-card ${isChosen ? 'is-selected-card' : ''}">
@@ -548,7 +580,7 @@ function renderCabCards(cabs) {
                 <h4>🚗 ${esc(c.name)}</h4>
                 <span class="sub-code">${esc(c.route)}</span>
               </div>
-              <span class="status-badge ESTIMATED">ESTIMATED</span>
+              <span class="status-badge ${esc(c.status || 'ESTIMATED').replace(/\s+/g, '-')}">${esc(c.status || 'ESTIMATED')}</span>
             </div>
             <div class="card-section">
               <span class="card-label">Vehicle & Service:</span>
